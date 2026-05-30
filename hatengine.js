@@ -2,7 +2,6 @@
 class HatEngine {
     constructor() {
         this.memory = {};
-        // Register commands to make the engine extensible
         this.commands = {
             'wear': (args) => {
                 const [key, val] = args.split('=').map(s => s.trim());
@@ -10,18 +9,22 @@ class HatEngine {
             },
             'show': (arg) => {
                 const text = this.memory[arg] || arg.replace(/['"]/g, '');
-                this.updateDOM(`<p>${text}</p>`);
+                this.updateDOM(`<div>${text}</div>`);
+            },
+            'math': (args) => {
+                const [key, val] = args.split('=').map(s => s.trim());
+                this.memory[key] = eval(val); // Powerful for calculations
             },
             'link': (args) => {
                 const [label, url] = args.split(',').map(s => s.trim());
-                this.updateDOM(`<a href="${url.replace(/['"]/g, '')}" target="_blank">${label.replace(/['"]/g, '')}</a>`);
+                this.updateDOM(`<a href="${url.replace(/['"]/g, '')}">${label.replace(/['"]/g, '')}</a>`);
+            },
+            'header': (text) => {
+                this.updateDOM(`<h1>${text.replace(/['"]/g, '')}</h1>`);
             },
             'style': (args) => {
                 const [prop, val] = args.split(',').map(s => s.trim());
                 document.getElementById('hat-output').style[prop] = val;
-            },
-            'img': (url) => {
-                this.updateDOM(`<img src="${url.replace(/['"]/g, '')}" style="max-width:100px;">`);
             }
         };
     }
