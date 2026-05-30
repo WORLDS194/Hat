@@ -1,49 +1,61 @@
+// hatengine.js
 class HatEngine {
     constructor() {
         this.memory = {};
+        console.log("Hat Engine: Initialized and ready.");
     }
 
-    // Process the raw text inside <HAT> tags
+    // Main parser
     run(code) {
-        const lines = code.split('\n');
-        
+        // Strip out the wrapper tags
+        const cleanCode = code.replace(/<HAT>/g, '').replace(/<\/HAT>/g, '').trim();
+        const lines = cleanCode.split('\n');
+
         for (let line of lines) {
             line = line.trim();
-            if (!line || line === '<HAT>' || line === '</HAT>') continue;
+            if (!line) continue;
 
-            // Handle 'wear' keyword (Variable Declaration)
+            // Handle 'wear' keyword (Variables)
             if (line.startsWith('wear')) {
                 const parts = line.replace('wear ', '').split('=');
-                const key = parts[0].trim();
-                const val = eval(parts[1].trim()); // Note: Simplistic evaluation
-                this.memory[key] = val;
+                if (parts.length === 2) {
+                    const key = parts[0].trim();
+                    const val = parts[1].trim().replace(/['"]/g, '');
+                    this.memory[key] = val;
+                }
             } 
             // Handle 'show' keyword (Output)
             else if (line.startsWith('show')) {
                 const match = line.match(/show\((.*)\)/);
                 if (match) {
-                    const output = this.memory[match[1]] || match[1].replace(/['"]/g, '');
-                    console.log(`[Hat Output]: ${output}`);
-                    this.updateDOM(output);
+                    const key = match[1].trim();
+                    const value = this.memory[key] || key;
+                    this.updateDOM(value);
+                }
+            }
+            // Handle 'alert' keyword (Popups)
+            else if (line.startsWith('alert')) {
+                const match = line.match(/alert\((.*)\)/);
+                if (match) {
+                    const key = match[1].trim();
+                    alert(this.memory[key] || key);
                 }
             }
         }
     }
 
+    // Helper to render output to the webpage
     updateDOM(text) {
         const outputDiv = document.getElementById('hat-output');
         if (outputDiv) {
-            outputDiv.innerHTML += `<p>${text}</p>`;
+            const p = document.createElement('p');
+            p.textContent = text;
+            outputDiv.appendChild(p);
+        } else {
+            console.log("Hat Output:", text);
         }
     }
 }
 
-// Initialize and execute all Hat blocks on the page
-window.addEventListener('DOMContentLoaded', () => {
-    const hatEngine = new HatEngine();
-    const scripts = document.querySelectorAll('script[type="text/hat"]');
-    
-    scripts.forEach(script => {
-        hatEngine.run(script.innerHTML);
-    });
-});
+// Attach to window so HTML files can see it immediately
+window.HatEngine = HatEngine;
