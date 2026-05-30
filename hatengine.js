@@ -2,60 +2,48 @@
 class HatEngine {
     constructor() {
         this.memory = {};
-        console.log("Hat Engine: Initialized and ready.");
+        // Register commands to make the engine extensible
+        this.commands = {
+            'wear': (args) => {
+                const [key, val] = args.split('=').map(s => s.trim());
+                this.memory[key] = val.replace(/['"]/g, '');
+            },
+            'show': (arg) => {
+                const text = this.memory[arg] || arg.replace(/['"]/g, '');
+                this.updateDOM(`<p>${text}</p>`);
+            },
+            'link': (args) => {
+                const [label, url] = args.split(',').map(s => s.trim());
+                this.updateDOM(`<a href="${url.replace(/['"]/g, '')}" target="_blank">${label.replace(/['"]/g, '')}</a>`);
+            },
+            'style': (args) => {
+                const [prop, val] = args.split(',').map(s => s.trim());
+                document.getElementById('hat-output').style[prop] = val;
+            },
+            'img': (url) => {
+                this.updateDOM(`<img src="${url.replace(/['"]/g, '')}" style="max-width:100px;">`);
+            }
+        };
     }
 
-    // Main parser
     run(code) {
-        // Strip out the wrapper tags
-        const cleanCode = code.replace(/<HAT>/g, '').replace(/<\/HAT>/g, '').trim();
-        const lines = cleanCode.split('\n');
-
+        const lines = code.split('\n');
         for (let line of lines) {
             line = line.trim();
-            if (!line) continue;
+            if (!line || line.includes('<HAT>') || line.includes('</HAT>')) continue;
 
-            // Handle 'wear' keyword (Variables)
-            if (line.startsWith('wear')) {
-                const parts = line.replace('wear ', '').split('=');
-                if (parts.length === 2) {
-                    const key = parts[0].trim();
-                    const val = parts[1].trim().replace(/['"]/g, '');
-                    this.memory[key] = val;
-                }
-            } 
-            // Handle 'show' keyword (Output)
-            else if (line.startsWith('show')) {
-                const match = line.match(/show\((.*)\)/);
-                if (match) {
-                    const key = match[1].trim();
-                    const value = this.memory[key] || key;
-                    this.updateDOM(value);
-                }
-            }
-            // Handle 'alert' keyword (Popups)
-            else if (line.startsWith('alert')) {
-                const match = line.match(/alert\((.*)\)/);
-                if (match) {
-                    const key = match[1].trim();
-                    alert(this.memory[key] || key);
-                }
+            const match = line.match(/^(\w+)\((.*)\)|(\w+)\s+(.*)/);
+            if (match) {
+                const cmd = match[1] || match[3];
+                const args = match[2] || match[4];
+                if (this.commands[cmd]) this.commands[cmd](args);
             }
         }
     }
 
-    // Helper to render output to the webpage
-    updateDOM(text) {
+    updateDOM(html) {
         const outputDiv = document.getElementById('hat-output');
-        if (outputDiv) {
-            const p = document.createElement('p');
-            p.textContent = text;
-            outputDiv.appendChild(p);
-        } else {
-            console.log("Hat Output:", text);
-        }
+        if (outputDiv) outputDiv.innerHTML += `<div>${html}</div>`;
     }
 }
-
-// Attach to window so HTML files can see it immediately
 window.HatEngine = HatEngine;
