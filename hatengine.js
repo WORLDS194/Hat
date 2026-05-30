@@ -1,4 +1,3 @@
-// hatengine.js - IE Compatible Version
 window.HatEngine = function() {
     var self = this;
     this.memory = {};
