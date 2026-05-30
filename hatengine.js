@@ -1,86 +1,113 @@
-class HatEngine {
-    constructor() {
-        this.memory = {};
-        this.commands = {
-            // Variable / Text declaration
-            'wear': (args) => {
-                const [key, val] = args.split('=').map(s => s.trim());
-                this.memory[key] = val ? val.replace(/['"]/g, '') : "";
-            },
-            // Pure Data declaration
-            'data': (args) => {
-                const [key, val] = args.split('=').map(s => s.trim());
-                this.memory[key] = val ? val.replace(/['"]/g, '') : "";
-            },
-            // Math operations
-            'math': (args) => {
-                const [key, val] = args.split('=').map(s => s.trim());
-                // Evaluates the math expression using numbers or stored variables
-                try {
-                    const dynamicExpression = val.replace(/[a-zA-Z_]\w*/g, (match) => {
-                        return this.memory[match] !== undefined ? this.memory[match] : match;
-                    });
-                    this.memory[key] = eval(dynamicExpression);
-                } catch(e) {
-                    this.memory[key] = "Math Error";
-                }
-            },
-            // UI Output
-            'show': (arg) => {
-                const text = this.memory[arg] !== undefined ? this.memory[arg] : arg.replace(/['"]/g, '');
-                this.updateDOM(`<div>${text}</div>`);
-            },
-            // UI Headers
-            'header': (text) => {
-                const content = this.memory[text] !== undefined ? this.memory[text] : text.replace(/['"]/g, '');
-                this.updateDOM(`<h1>${content}</h1>`);
-            },
-            // Hyperlinks
-            'link': (args) => {
-                const [label, url] = args.split(',').map(s => s.trim());
-                const cleanLabel = label.replace(/['"]/g, '');
-                const cleanUrl = url.replace(/['"]/g, '');
-                this.updateDOM(`<p><a href="${cleanUrl}" target="_blank">${cleanLabel}</a></p>`);
-            },
-            // Styling the layout container
-            'style': (args) => {
-                const [prop, val] = args.split(',').map(s => s.trim());
-                const output = document.getElementById('hat-output');
-                if (output) output.style[prop] = val;
+// hatengine.js - IE Compatible Version
+window.HatEngine = function() {
+    var self = this;
+    this.memory = {};
+    
+    this.commands = {
+        'wear': function(args) {
+            var parts = args.split('=');
+            var key = parts[0].trim();
+            var val = parts[1] ? parts[1].trim() : "";
+            self.memory[key] = val.replace(/['"]/g, '');
+        },
+        'data': function(args) {
+            var parts = args.split('=');
+            var key = parts[0].trim();
+            var val = parts[1] ? parts[1].trim() : "";
+            self.memory[key] = val.replace(/['"]/g, '');
+        },
+        'math': function(args) {
+            var parts = args.split('=');
+            var key = parts[0].trim();
+            var val = parts[1] ? parts[1].trim() : "";
+            try {
+                // IE-compatible variable replacement inside math expressions
+                var dynamicExpression = val.replace(/[a-zA-Z_]\w*/g, function(match) {
+                    return self.memory[match] !== undefined ? self.memory[match] : match;
+                });
+                self.memory[key] = eval(dynamicExpression);
+            } catch(e) {
+                self.memory[key] = "Math Error";
             }
-        };
-        this.init();
-    }
+        },
+        'show': function(arg) {
+            var text = self.memory[arg] !== undefined ? self.memory[arg] : arg.replace(/['"]/g, '');
+            self.updateDOM('<div>' + text + '</div>');
+        },
+        'header': function(text) {
+            var content = self.memory[text] !== undefined ? self.memory[text] : text.replace(/['"]/g, '');
+            self.updateDOM('<h1>' + content + '</h1>');
+        },
+        'link': function(args) {
+            var parts = args.split(',');
+            var label = parts[0].trim().replace(/['"]/g, '');
+            var url = parts[1] ? parts[1].trim().replace(/['"]/g, '') : '';
+            self.updateDOM('<p><a href="' + url + '" target="_blank">' + label + '</a></p>');
+        },
+        'style': function(args) {
+            var parts = args.split(',');
+            var prop = parts[0].trim();
+            var val = parts[1] ? parts[1].trim() : '';
+            var output = document.getElementById('hat-output');
+            if (output) {
+                output.style[prop] = val;
+            }
+        }
+    };
+    
+    this.init();
+};
 
-    // Automatically looks for <HAT> tags on the page
-    init() {
-        window.addEventListener('DOMContentLoaded', () => {
-            document.querySelectorAll('script[type="text/plain"]').forEach(s => {
-                if (s.textContent.includes('<HAT>')) this.run(s.textContent);
-            });
+HatEngine.prototype.init = function() {
+    var self = this;
+    
+    // IE-compatible DOM content loaded event listener
+    var runEngine = function() {
+        var scripts = document.getElementsByTagName('script');
+        for (var i = 0; i < scripts.length; i++) {
+            var script = scripts[i];
+            if (script.getAttribute('type') === 'text/plain' && script.innerHTML.indexOf('<HAT>') !== -1) {
+                self.run(script.innerHTML);
+            }
+        }
+    };
+
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+        runEngine();
+    } else if (document.addEventListener) {
+        document.addEventListener('DOMContentLoaded', runEngine, false);
+    } else if (document.attachEvent) { // Legacy IE support
+        document.attachEvent('onreadystatechange', function() {
+            if (document.readyState === 'complete') runEngine();
         });
     }
+};
 
-    run(code) {
-        code.split('\n').forEach(line => {
-            line = line.trim();
-            if (!line || line.includes('<HAT>') || line.includes('</HAT>')) return;
-            
-            // Matches command(arguments) or command arguments
-            const match = line.match(/^(\w+)\((.*)\)|(\w+)\s+(.*)/);
-            if (match) {
-                const cmd = match[1] || match[3];
-                const args = match[2] || match[4];
-                if (this.commands[cmd]) this.commands[cmd](args);
+HatEngine.prototype.run = function(code) {
+    var self = this;
+    var lines = code.split('\n');
+    
+    for (var i = 0; i < lines.length; i++) {
+        var line = lines[i].trim();
+        if (!line || line.indexOf('<HAT>') !== -1 || line.indexOf('</HAT>') !== -1) continue;
+        
+        var match = line.match(/^(\w+)\((.*)\)|(\w+)\s+(.*)/);
+        if (match) {
+            var cmd = match[1] || match[3];
+            var args = match[2] || match[4];
+            if (self.commands[cmd]) {
+                self.commands[cmd](args);
             }
-        });
+        }
     }
+};
 
-    updateDOM(html) {
-        const out = document.getElementById('hat-output');
-        if (out) out.innerHTML += html;
+HatEngine.prototype.updateDOM = function(html) {
+    var out = document.getElementById('hat-output');
+    if (out) {
+        out.innerHTML += html;
     }
-}
+};
 
-// Start it up automatically
+// Start the engine safely for all browsers
 new HatEngine();
